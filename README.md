@@ -1,5 +1,5 @@
 # twitter-data-mining  
-> more description coming soon
+> coming soon
 
 **Fetch tweets using _Tweepy_**    
 
