@@ -1,5 +1,5 @@
 # twitter-data-mining  
-> My first DS project  
+> more description coming soon
 
 **Fetch tweets using _Tweepy_**    
 
