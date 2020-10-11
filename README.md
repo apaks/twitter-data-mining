@@ -25,9 +25,4 @@
   - construct graph based on user interactions  
   - community detection, graph visualization [Gephi](https://gephi.org/)
   
-```
-git status
-git add .
-git reset
-git commit
-```
+
