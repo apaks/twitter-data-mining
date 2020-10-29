@@ -28,5 +28,11 @@ How things get popular and viral on social media? While influencers and large co
     - HDBSCAN
   - construct graph based on user interactions  
   - community detection, graph visualization [Gephi](https://gephi.org/)
-  
 
+## Future development
+  - add media page
+  - deploy to web
+  - web scrapers
+  - Add other social media
+
+## License
