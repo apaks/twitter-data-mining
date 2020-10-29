@@ -1,7 +1,7 @@
 # Twitter Trends  
 > coming soon
 
-![TwiTr app Demo](demo/demo.gif)
+![TwiTr app Demo](https://github.com/apaks/twitter-data-mining/blob/master/demo.gif)
 
 **Fetch tweets using _Tweepy_**    
 
