@@ -1,5 +1,5 @@
 # Twitter Trends  
-> coming soon
+> How things get popular and viral on social media? While influencers and big companies mostly shape social media, why some products are more visible than others? I plan to build a web tool that utilizes Twitter data to gain insight into how public opinion on a specific issue/product/service is shaped by and distributed across different user groups and time.  We perform sentiment analysis (nltk, textblob, flair) on Tweets and visualize how it is distributed across identified groups and time. 
 
 ![TwiTr app Demo](https://github.com/apaks/twitter-data-mining/blob/master/demo.gif)
 
