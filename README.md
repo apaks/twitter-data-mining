@@ -6,16 +6,16 @@ How things get popular and viral on social media? While influencers and big comp
 **Fetch tweets using _Tweepy_**    
 
 **1. Save them in:**  
-  - DF
+  - DF 
   - PostgreSQL DB
   - .json
 
-**2. Analyze tw arious libraries:**  
+**2. Analyze and visualize Twitter data using varous libraries:**  
   - *nltk*
-  - *wordcloud*
   - *sklearn*  
+  - *wordcloud*
   - *NetworkX*
-  - tSNE
+  - tSNE/UMAP
 
 **3. Perform:**  
   - basic text processing  
