@@ -1,6 +1,8 @@
 # Twitter Trends  
 > coming soon
 
+[TwiTr app Demo](demo/demo.gif)
+
 **Fetch tweets using _Tweepy_**    
 
 **1. Save them in:**  
