@@ -1,5 +1,5 @@
 # Twitter Trends  
-How things get popular and viral on social media? While influencers and large companies mostly shape trends on social media, why some products are more visible than others? I built an app that utilizes Twitter data to gain insight into how public opinion on a specific issue/product/service is shaped by and distributed across different user groups and time. Sentiment analysis was performed using nltk, textblob, and flair and results show how public opinion might be distributed across different user groups and evolve in time. See demo below.  
+How things get popular and viral on social media? While influencers and large companies mostly shape trends on social media, why some products are more visible than others? I built an app that utilizes Twitter data to gain insight into how public opinion on a specific issue/product/service is shaped by and distributed across different user groups and time. Sentiment analysis was performed using nltk and textblob and the results show how public opinion might be differentially distributed across different user groups and time. See demo below.  
 
 ![TwiTr app Demo](https://github.com/apaks/twitter-data-mining/blob/master/demo.gif)
 
