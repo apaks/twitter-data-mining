@@ -1,4 +1,4 @@
-# twitter-data-mining  
+# Twitter Trends  
 > coming soon
 
 **Fetch tweets using _Tweepy_**    
