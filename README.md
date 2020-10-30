@@ -3,7 +3,7 @@ How things get popular and viral on social media? While influencers and large co
 
 ## Demo
 
-![TwiTr app Demo](https://github.com/apaks/twitter-data-mining/blob/master/demo.gif)
+![TwiTr app Demo](demo.gif)
 
 **Fetch tweets using _Tweepy_**    
 
