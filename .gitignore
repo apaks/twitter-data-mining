@@ -2,4 +2,4 @@
 *.jpg
 *.json
 *.pkl
-auth_twitter.py
+auth*
