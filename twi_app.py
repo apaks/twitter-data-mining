@@ -25,6 +25,10 @@ import hdbscan
 import umap
 from bokeh.plotting import figure, ColumnDataSource, show
 from bokeh.models import HoverTool
+import yfinance as yf
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
 
 sns.set_context("paper")
 plt.rc("axes.spines", top=False, right=False)
@@ -125,22 +129,21 @@ def get_status_text(df_row):
     return text
 
 def get_tweet_counts_overtime(ts, res_window = "1H"):
-    fig, ax = plt.subplots()
     
-
     tmp = ts
     ones = [1]*len(tmp)
     tmp = pd.DataFrame(ones, index = tmp)
     tmp = tmp.resample(res_window).sum().fillna(0).reset_index()
     tmp.columns = ['date', 'freq']
 
-    ax = sns.lineplot(data = tmp, x = 'date', y = 'freq')
-    date_form = DateFormatter("%m-%d-%H-%M")
-    ax.xaxis.set_major_formatter(date_form)
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Tweet count')
-    plt.xticks(rotation = 45)
-    plt.tight_layout()
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Scatter(x=fin_data.index, y=fin_data['High'],
+            name=user_input), secondary_y = False)
+
+    fig.add_trace(go.Scatter(x=tmp["date"], y=tmp["freq"], 
+            name = "count of tweets"), secondary_y = True)
+
     return fig
 
 @st.cache
@@ -148,15 +151,15 @@ def load_tweets(miner, q_word):
     counter = 1
     ls_master = []
     last_id = False
-    while counter < 6:
+    while counter < 10:
         # print (counter)
         try:
             ls_tweets, last_tweet_id = miner.mine_tweets_keyword(query=q_word, language = 'en', 
-                                        last_tweet_id = last_id, max_pages = 34)
+                                        last_tweet_id = last_id, max_pages = 20)
             last_id = last_tweet_id
             ls_master.extend(ls_tweets)
         except:
-            print ("Limit is reached")
+            st.error("Limit is reached. Wait for 15 min before you can access Twitter API")
     #         time.sleep(16*60) #15 minute sleep time
             break
         if len(ls_tweets) < 1:
@@ -198,18 +201,30 @@ def plot_wordcloud(_input):
     return fig
 
 
-def sentim_by_col(col):
-    
-    bins = [0, 50, 100, 500, 1000, 2e7]
-    tmp = pd.cut(df_tweets_2[col], bins = bins,  labels= bins[:-1]) 
+def sentim_by_col(col, y):
+    if "fol" in col or "fri" in col:
+        bins = [-1, 5000, 10000, 50000, 100000, 2e8]
+        bin_labels = ["<5000", "<10000", "<50000", "less than 100000", "more than 100000"]
+    else:
+        bins = [-1, 50, 100, 500, 1000, 2e7]
+        bin_labels = ["<50", "<100", "<500", "less than 1000", "more than 1000"]
+    tmp = pd.cut(df_tweets_2[col], bins = bins,  labels= bin_labels) 
     df_tweets_2[col + "_cut"] = tmp
+    
+    subfig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig = px.scatter(df_tweets_2, x="created_at", y= y, size= col, 
+                hover_name="user_bio",
+                    color= col + '_cut',
+                    log_x=False, size_max=40)
+    fig2 = px.line(x=fin_data.index, y=fin_data['High'])
+    for tr in fig.data:
+        subfig.add_trace(tr, secondary_y = True)
+    for tr in fig2.data:
+        subfig.add_trace(tr, secondary_y = False)
+    subfig['layout']["yaxis"]["title"] = f"Sentiment algo: {y}"
+    subfig['layout']["legend"]["title"] = col
 
-    fig, ax = plt.subplots(1, 2,  sharey = True, sharex = True)
-    for idx, m in enumerate(models):  
-        sns.violinplot(x = col + "_cut", y = m, data = df_tweets_2, ax = ax[idx])
-        ax[idx].set_xlabel("")
-    fig.text(0.5, 0, col, ha='center')
-    return fig
+    return subfig
 
 @st.cache
 def sentiment_analysis(df_tweets_2):
@@ -414,11 +429,11 @@ def plot_umap(df, title='Umap plot'):
 
 
 
-st.title('[Twi]tter [Tr]ends')
-st.text('Select a page in the sidebar')
+st.title('Twitter Trends')
+st.markdown("### Go to Navigation panel after loading tweets")
 
-
-user_input = st.text_input("What you are looking for?")
+sel_flag = st.radio("Are you interested in", ["stocks", "crypto"])
+user_input = st.text_input("Put a ticker name eg. TSLA or BTC)")
 
 # if st.button('Load tweets'):
 if user_input:
@@ -430,37 +445,52 @@ if user_input:
     st.write("{} Tweets are loaded".format(df_tweets.shape[0]))
 
     df_tweets_2 = select_columns(df_tweets)
-
+    regex = re.compile('[^a-zA-Z]')
+    #First parameter is the replacement, second parameter is your input string
+    user_input = regex.sub('', user_input)
+    if sel_flag == "stocks":
+        fin_data = yf.download(tickers = user_input, period = '7d', interval = '15m')
+        fig = px.line(fin_data, x= fin_data.index, y= 'High', title = f"7 day history of {user_input}")
+        st.plotly_chart(fig)
+    else:
+        fin_data = yf.download(tickers = user_input + "-USD", period = '7d', interval = '30m')
+        fig = px.line(fin_data, x= fin_data.index, y= 'High', title = f"7 day history of {user_input}")
+        st.plotly_chart(fig)
 
 else:
-    st.text("No input, type the word or phrase")
+    st.text("No input, type the ticker name")
 
 st.sidebar.title("Navigation")
 
 
 
 
-
 # page = st.sidebar.selectbox("Choose a page", ['Exploration', 'Tweets', 'Users'])
 
-page = st.sidebar.radio("Choose a page", ('Load tweets', 'Tweets', 'Users'))
+page = st.sidebar.radio("Choose a page", ('Load tweets', 'Sentiment across time', 'Sentiment across users'))
 
 st.sidebar.title("About")
-st.sidebar.info("This app uses [Streamlit] (https://docs.streamlit.io/en/stable/api.html) \
-    and [Tweepy] (http://docs.tweepy.org/en/latest/)   \n \
-- Retweets are not included    \n \
-- Only recent tweets are loaded      \n \
-- Seacrh limited to ~20K tweets ")
+st.sidebar.warning("Let's see whether we can predict trends in stocks/crypto market from the sentiment analysis of tweets")
+st.sidebar.info("- Retweets are not included            \n \
+- Only recent tweets are loaded        \n \
+- Seacrh limited to ~20K tweets        \n \
+Powered by [Streamlit] (https://docs.streamlit.io/en/stable/api.html), \
+    [Tweepy] (http://docs.tweepy.org/en/latest/), [yfinance](https://pypi.org/project/yfinance/)   \
+    and [Plotly](https://plotly.com/)          \n " )
 
 if page == 'Load tweets':
+    
     if user_input:
         st.write(df_tweets_2.head())
         st.markdown('### Top 3 tweets')
-        for text in df_tweets_2.nlargest(3, "retweet_count").text.values:
-            st.write(text)
+        
+        for idx in df_tweets_2.nlargest(3, "retweet_count").index:
+            st.write(df_tweets_2.iloc[idx].text)
+            # st.write(df_tweets_2.iloc[idx].created_at)
+            st.write(df_tweets_2.iloc[idx][["retweet_count", 'favorite_count' , "followers_count"]])
 
            
-elif page == 'Tweets':
+elif page == "Sentiment across time":
     st.title('Lets analyze tweets')
     try:
         d_txtblob, d_vader, count_terms, count_hash = sentiment_analysis(df_tweets_2)
@@ -472,13 +502,13 @@ elif page == 'Tweets':
     if st.checkbox("Activity across time"):
         # plot tweet counts over time
         fig = get_tweet_counts_overtime(df_tweets_2["created_at"], "10T")
-        st.pyplot(fig)
+        st.plotly_chart(fig)
 
     if st.checkbox("Tweet processing and sentiment analysis"):
   
         st.markdown('### The most common words')
-        st.text(count_hash.most_common(10))
-        st.text(count_terms.most_common(10))
+        st.text(count_hash.most_common(100))
+        st.text(count_terms.most_common(100))
 
         # plot wordcloud
         _input = count_terms
@@ -495,24 +525,29 @@ elif page == 'Tweets':
         # col = "favorite_count"
         if len(columns) > 0:
             for col in columns:
-                fig = sentim_by_col(col)
-                st.pyplot(fig)
+                st.write(col)
+                fig = sentim_by_col(col, models[0])
+                st.plotly_chart(fig)
+
+                fig = sentim_by_col(col, models[1])
+                st.plotly_chart(fig)
 
     if st.checkbox("Sentiment analysis across time"):
+        
+        tmp =  df_tweets_2[["created_at", "vader", "txtblob"]].set_index("created_at").resample('1H').mean().reset_index()
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        fig, ax = plt.subplots()
-        for idx,m in enumerate(models):
-            tmp =  df_tweets_2[["created_at", m]].set_index("created_at").resample('1H').mean().reset_index()
-            ax = sns.lineplot(x = "created_at" , y = m, data = tmp, ci = False , label = m)
+        fig.add_trace(go.Scatter(x = fin_data.index, y=fin_data['High'],
+                    name=user_input), secondary_y = False)
 
-        date_form = DateFormatter("%m-%d")
-        ax.xaxis.set_major_formatter(date_form)
-        ax.set_xlabel('Date')
-        ax.set_ylabel('Sentiment score')
-        # plt.legend(bbox_to_anchor=(.7, 1), loc=2, borderaxespad=0.)
-        plt.xticks(rotation = 45)
-        plt.tight_layout()
-        st.pyplot(fig)
+        fig.add_trace(go.Scatter(x=tmp['created_at'], y= tmp["vader"],
+                    name='vader'), secondary_y = True)
+
+        fig.add_trace(go.Scatter(x=tmp['created_at'], y= tmp["txtblob"],
+                    name='txtblob'), secondary_y = True)
+
+        st.plotly_chart(fig)
+
 
 else:
     st.title('Lets look at users')
