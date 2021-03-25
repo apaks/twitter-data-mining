@@ -1,5 +1,7 @@
-*.py
 *.jpg
 *.json
 *.pkl
+.ipynb_checkpoints
+__pycache__/
 auth*
+data/
