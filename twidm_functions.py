@@ -24,8 +24,30 @@ from textblob import TextBlob
 from sklearn.feature_extraction.text import TfidfVectorizer
 import hdbscan
 
+sian = SentimentIntensityAnalyzer()
 
-def get_tweet_counts_overtime(fin_data, ts, res_window = "1H"):
+punctuation = list(string.punctuation)
+stop = stopwords.words('english') + punctuation 
+emoticons_str = r"""
+(?:
+    [:=;] # Eyes
+    [oO\-]? # Nose (optional)
+    [D\)\]\(\]/\\OpP] # Mouth
+)"""
+regex_str = [
+    emoticons_str,
+    r'<[^>]+>', # HTML tags
+    r'(?:@[\w_]+)', # @-mentions
+    r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)", # hash-tags
+    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+', # URLs
+    r'\n',
+    r"^\s+|\s+$"
+]
+cleaner_re = re.compile(r'('+'|'.join(regex_str)+')', re.VERBOSE | re.IGNORECASE)
+
+
+
+def get_tweet_counts_overtime(fin_data, ts, user_input, res_window = "1H" ):
     
     tmp = ts
     ones = [1]*len(tmp)
@@ -42,7 +64,47 @@ def get_tweet_counts_overtime(fin_data, ts, res_window = "1H"):
             name = "count of tweets"), secondary_y = True)
 
     fig.update_layout(
-        # title=user_input.upper(),
+        title=user_input.upper(),
+        plot_bgcolor="#FFFFFF",
+        hovermode="x",
+        hoverdistance=100, # Distance to show hover label of data point
+        spikedistance=-1, # Distance to show spike
+        xaxis=dict(
+    #         title="time",
+            linecolor="#BCCCDC",
+    #         showspikes=True, # Show spike line for X-axis
+            # Format spike
+            spikethickness=2,
+            spikedash="dot",
+            spikecolor="#999999",
+            spikemode="toaxis+across",
+        ),
+        yaxis=dict(
+            title="Price",
+            linecolor="#BCCCDC"
+        ),
+        yaxis2=dict(
+            title="Count of tweets",
+            linecolor="#BCCCDC"
+        )
+    )
+    return fig
+
+def plot_ohlc(fin_data, user_input):
+
+    fig = make_subplots(rows=2, cols=1, row_heights=[0.8, 0.2],shared_xaxes=True,
+                        vertical_spacing=0.02)
+    fig.add_trace(go.Ohlc(x=fin_data.index,
+            open=fin_data['Open'],
+            high=fin_data['High'],
+            low=fin_data['Low'],
+            close=fin_data['Close']), row = 1, col = 1)
+
+    fig.add_trace(go.Bar(x=fin_data.index, y=fin_data["Volume"], marker_color = "black" ), row = 2, col = 1)    
+    fig.update(layout_xaxis_rangeslider_visible=False)
+
+    fig.update_layout(
+        title=user_input.upper(),
         plot_bgcolor="#FFFFFF",
         hovermode="x",
         hoverdistance=100, # Distance to show hover label of data point
@@ -83,21 +145,21 @@ def plot_wordcloud(_input):
     return fig
 
 
-def sentim_by_col(col, y):
+def sentim_by_col(df_tweets, fin_data, col, y):
     if "fol" in col or "fri" in col:
         bins = [-1, 5000, 10000, 50000, 100000, 2e8]
-        bin_labels = ["<5000", "<10000", "<50000", "less than 100000", "more than 100000"]
+        bin_labels = ["<5,000", "<10,000", "<50,000", "less than 100,000", "more than 100,000"]
     else:
         bins = [-1, 50, 100, 500, 1000, 2e7]
-        bin_labels = ["<50", "<100", "<500", "less than 1000", "more than 1000"]
+        bin_labels = ["<50", "<100", "<500", "less than 1,000", "more than 1,000"]
     tmp = pd.cut(df_tweets[col], bins = bins,  labels= bin_labels) 
     df_tweets[col + "_cut"] = tmp
     
     subfig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig = px.scatter(df_tweets, x="created_at", y= y, size= col, 
-                hover_name="user_bio",
+    fig = px.scatter(df_tweets, x="created_at", y = y, size= col, 
+                hover_name="user_name",
                     color= col + '_cut',
-                    log_x=False, size_max=40)
+                    log_x=False, size_max= 40)
     fig2 = px.line(x=fin_data.index, y=fin_data['High'])
     for tr in fig.data:
         subfig.add_trace(tr, secondary_y = True)

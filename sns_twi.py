@@ -37,82 +37,26 @@ def load_tweets(q_str, max_tweets = 100):
             break
         source = get_source(tweet.source)
         text = tweet.content.lower()
+        # do not include bots and giveaways
         if "Twit" in source and "away" not in text and "give" not in text:
-            tweets_list.append([tweet.date, tweet.id, text, tweet.replyCount, tweet.retweetCount,
+            tweets_list.append([tweet.date, tweet.id, text, tweet.user.username, tweet.replyCount, tweet.retweetCount,
                                 tweet.likeCount, tweet.quoteCount,  source, tweet.url,
                 tweet.user.id, tweet.user.description , tweet.user.followersCount, tweet.user.friendsCount
                                 ])
 
     # Creating a dataframe from the tweets list above
-    df_tweets = pd.DataFrame(tweets_list, columns=['created_at', 'id', 'text',  
+    df_tweets = pd.DataFrame(tweets_list, columns=['created_at', 'id', 'text',  'username',
                                     'replyCount', 'retweetCount', 'likeCount', 'quoteCount', "source", "tweet_url",
                                     'user_id', "user_bio" , 'followers_count', 'friends_count' ])
     
     return df_tweets
 
-def plot_ohlc(fin_data):
 
-    fig = make_subplots(rows=2, cols=1, row_heights=[0.8, 0.2],shared_xaxes=True,
-                        vertical_spacing=0.02)
-    fig.add_trace(go.Ohlc(x=fin_data.index,
-            open=fin_data['Open'],
-            high=fin_data['High'],
-            low=fin_data['Low'],
-            close=fin_data['Close']), row = 1, col = 1)
-
-    fig.add_trace(go.Bar(x=fin_data.index, y=fin_data["Volume"], marker_color = "black" ), row = 2, col = 1)    
-    fig.update(layout_xaxis_rangeslider_visible=False)
-
-    fig.update_layout(
-        title=user_input.upper(),
-        plot_bgcolor="#FFFFFF",
-        hovermode="x",
-        hoverdistance=100, # Distance to show hover label of data point
-        spikedistance=-1, # Distance to show spike
-        xaxis=dict(
-    #         title="time",
-            linecolor="#BCCCDC",
-    #         showspikes=True, # Show spike line for X-axis
-            # Format spike
-            spikethickness=2,
-            spikedash="dot",
-            spikecolor="#999999",
-            spikemode="toaxis+across",
-        ),
-        yaxis=dict(
-            title="Price",
-            linecolor="#BCCCDC"
-        ),
-        yaxis2=dict(
-            title="Volume",
-            linecolor="#BCCCDC"
-        )
-    )
-    return fig
    
 
-sian = twidm.SentimentIntensityAnalyzer()
+
 
 models= ["vader", "txtblob"]
-punctuation = list(twidm.string.punctuation)
-stop = twidm.stopwords.words('english') + punctuation 
-emoticons_str = r"""
-(?:
-    [:=;] # Eyes
-    [oO\-]? # Nose (optional)
-    [D\)\]\(\]/\\OpP] # Mouth
-)"""
-regex_str = [
-    emoticons_str,
-    r'<[^>]+>', # HTML tags
-    r'(?:@[\w_]+)', # @-mentions
-    r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)", # hash-tags
-    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+', # URLs
-    r'\n',
-    r"^\s+|\s+$"
-]
-cleaner_re = re.compile(r'('+'|'.join(regex_str)+')', re.VERBOSE | re.IGNORECASE)
-
 
 
 st.title('Twitter Trends')
@@ -137,19 +81,19 @@ if user_input and len(dt_range)==2:
     #First parameter is the replacement, second parameter is your input string
     user_input = regex.sub('', user_input)
     if sel_flag == "stocks":
-        try:
-            fin_data = yf.download(tickers = user_input, start = dt_range[0], end = dt_range[1], interval = '15m')
-            fig = plot_ohlc(fin_data)
-            st.plotly_chart(fig)
-        except:
-            st.warning("Cannot download data, did you choose stocks?")
+        # try:
+        fin_data = yf.download(tickers = user_input, start = dt_range[0], end = dt_range[1], interval = '15m')
+        fig = twidm.plot_ohlc(fin_data, user_input)
+        st.plotly_chart(fig)
+        # except:
+        #     st.warning("Cannot download data, did you choose stocks?")
     else:
-        try:
-            fin_data = yf.download(tickers = user_input + "-USD", start = dt_range[0], end = dt_range[1], interval = '30m')
-            fig = plot_ohlc(fin_data)
-            st.plotly_chart(fig)
-        except:
-            st.warning("Cannot download data, did you choose crypto")
+        # try:
+        fin_data = yf.download(tickers = user_input + "-USD", start = dt_range[0], end = dt_range[1], interval = '30m')
+        fig = twidm.plot_ohlc(fin_data, user_input)
+        st.plotly_chart(fig)
+        # except:
+        #     st.warning("Cannot download data, did you choose crypto")
 
 
 
@@ -157,7 +101,6 @@ else:
     st.text("No input, type the ticker name")
 
 st.sidebar.title("Navigation")
-
 
 
 
@@ -188,7 +131,7 @@ if page == 'Load tweets':
 elif page == "Sentiment across time":
     st.title('Lets analyze tweets')
     # try:
-    d_txtblob, d_vader, count_terms, count_hash = twidm,sentiment_analysis(df_tweets)
+    d_txtblob, d_vader, count_terms, count_hash = twidm.sentiment_analysis(df_tweets)
     df_tweets[ "txtblob"] = df_tweets["id"].map(d_txtblob)
     df_tweets["vader"] = df_tweets["id"].map(d_vader)
     # except:
@@ -196,7 +139,7 @@ elif page == "Sentiment across time":
 
     if st.checkbox("Activity across time"):
         # plot tweet counts over time
-        fig = twidm.get_tweet_counts_overtime(fin_data, df_tweets["created_at"], "10T")
+        fig = twidm.get_tweet_counts_overtime(fin_data, df_tweets["created_at"], user_input, "10T" )
         st.plotly_chart(fig)
 
     if st.checkbox("Tweet processing and sentiment analysis"):
@@ -221,10 +164,10 @@ elif page == "Sentiment across time":
         if len(columns) > 0:
             for col in columns:
                 st.write(col)
-                fig = twidm.sentim_by_col(col, models[0])
+                fig = twidm.sentim_by_col(df_tweets, fin_data, col, models[0])
                 st.plotly_chart(fig)
 
-                fig = twidm.sentim_by_col(col, models[1])
+                fig = twidm.sentim_by_col(df_tweets, fin_data, col, models[1])
                 st.plotly_chart(fig)
 
     if st.checkbox("Sentiment analysis across time"):
