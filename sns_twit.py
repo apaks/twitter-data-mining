@@ -35,18 +35,18 @@ def load_tweets(q_str, max_tweets = 100):
     for idx, tweet in enumerate(sntwitter.TwitterSearchScraper(q_str).get_items()):
         if idx > max_tweets:
             break
-        source = get_source(tweet.source)
+        # source = get_source(tweet.source)
         text = tweet.content.lower()
         # do not include bots and giveaways
-        if "Twit" in source and "away" not in text and "give" not in text:
+        if "away" not in text and "give" not in text:
             tweets_list.append([tweet.date, tweet.id, text, tweet.user.username, tweet.replyCount, tweet.retweetCount,
-                                tweet.likeCount, tweet.quoteCount,  source, tweet.url,
+                                tweet.likeCount, tweet.quoteCount,  tweet.url,
                 tweet.user.id, tweet.user.description , tweet.user.followersCount, tweet.user.friendsCount
                                 ])
 
     # Creating a dataframe from the tweets list above
     df_tweets = pd.DataFrame(tweets_list, columns=['created_at', 'id', 'text',  'username',
-                                    'replyCount', 'retweetCount', 'likeCount', 'quoteCount', "source", "tweet_url",
+                                    'replyCount', 'retweetCount', 'likeCount', 'quoteCount',  "tweet_url",
                                     'user_id', "user_bio" , 'followers_count', 'friends_count' ])
     
     return df_tweets
