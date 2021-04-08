@@ -15,13 +15,13 @@ from matplotlib.dates import DateFormatter
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-# nltk.download('vader_lexicon')
+import nltk
+nltk.download('vader_lexicon')
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
 from textblob import TextBlob
 # cluster users
-
 import hdbscan
 
 sian = SentimentIntensityAnalyzer()
@@ -211,13 +211,8 @@ def sentiment_analysis(df_tweets):
     return d_txtblob, d_vader, count_terms, count_hash
 
 
-
-
-
-
 def process_tweet(tweet): 
     return cleaner_re.sub("", tweet)
-
 
 
 def replace_urls(in_string, replacement=None):
