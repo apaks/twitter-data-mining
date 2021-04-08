@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-
+import seaborn as sns
 import re
 import operator 
 import string
@@ -21,7 +21,7 @@ from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
 from textblob import TextBlob
 # cluster users
-from sklearn.feature_extraction.text import TfidfVectorizer
+
 import hdbscan
 
 sian = SentimentIntensityAnalyzer()
@@ -157,7 +157,7 @@ def sentim_by_col(df_tweets, fin_data, col, y):
     
     subfig = make_subplots(specs=[[{"secondary_y": True}]])
     fig = px.scatter(df_tweets, x="created_at", y = y, size= col, 
-                hover_name="user_name",
+                hover_name="username",
                     color= col + '_cut',
                     log_x=False, size_max= 40)
     fig2 = px.line(x=fin_data.index, y=fin_data['High'])
@@ -170,7 +170,7 @@ def sentim_by_col(df_tweets, fin_data, col, y):
 
     return subfig
 
-@st.cache
+@st.cache(show_spinner=False)
 def sentiment_analysis(df_tweets):
     tweet_tokenizer = TweetTokenizer()
     d_txtblob = {}
@@ -246,7 +246,7 @@ def my_tokenizer(in_string):
     tokens = [word for word in tokens if len(word) > 2 and "#" not in word]
     return tokens
 
-@st.cache
+@st.cache(show_spinner=False)
 def fit_hdbscan(data):
 
     hdbs = hdbscan.HDBSCAN(min_cluster_size=100,
@@ -273,7 +273,7 @@ def plot_hdbs_clustersize(hdbs):
     plt.title('population sizes ({} clusters found by hdbscan)'.format(len(label_counts) - 1));
     return fig
 
-def strongest_features(model, vectorizer, topk=10):
+def strongest_features(model, vectorizer, bio_matrix, topk=10):
     """
     Helper function to display a simple text representation of the top-k most
     important features in our fit model and vectorizer.
@@ -289,7 +289,7 @@ def strongest_features(model, vectorizer, topk=10):
     relevant_labels = [ x for x in set(model.labels_) if x >= 0 ]
     # -1 is a noise cluster
     for this_label in relevant_labels:
-        matching_rows = np.where(hdbs.labels_ == this_label)[0]
+        matching_rows = np.where(model.labels_ == this_label)[0]
         coeff_sums = np.sum(bio_matrix[matching_rows], axis=0).A1
         sorted_coeff_idxs = np.argsort(coeff_sums)[::-1]
         st.text('Cluster {}: '.format(this_label))

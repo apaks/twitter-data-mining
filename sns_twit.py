@@ -6,7 +6,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import snscrape.modules.twitter as sntwitter
 import twidm_functions as twidm
-
+from sklearn.feature_extraction.text import TfidfVectorizer
 # from bokeh.plotting import figure, ColumnDataSource, show
 # from bokeh.models import HoverTool
 import re
@@ -25,7 +25,7 @@ def get_source(source):
     end_str = source.find("</a>")
     return source[st_str:end_str]
 
-@st.cache
+@st.cache(show_spinner=False)
 def load_tweets(q_str, max_tweets = 100):
 
     # Creating list to append tweet data to
@@ -59,7 +59,7 @@ def load_tweets(q_str, max_tweets = 100):
 models= ["vader", "txtblob"]
 
 
-st.title('Twitter Trends')
+st.title('Crypto/stocks opinion from Twitter')
 st.markdown("### Go to Navigation panel after loading tweets")
 
 sel_flag = st.radio("Are you interested in", ["stocks", "crypto"])
@@ -72,8 +72,9 @@ if user_input and len(dt_range)==2:
     
     q_str = f"{user_input} {sel_flag} since:{dt_range[0]} until:{dt_range[1]} lang:en"  
     st.write(q_str)
-    max_tweets = 10000
-    data = load_tweets(q_str, max_tweets)
+    max_tweets = 100000
+    with st.spinner("Loading tweets"):
+        data = load_tweets(q_str, max_tweets)
     df_tweets = data.copy()
     st.write("{} Tweets are loaded".format(df_tweets.shape[0]))
 
@@ -109,11 +110,11 @@ page = st.sidebar.radio("Choose a page", ('Load tweets', 'Sentiment across time'
 
 st.sidebar.title("About")
 st.sidebar.warning("Let's see whether we can predict trends in stocks/crypto market from the sentiment analysis of tweets")
-st.sidebar.info("- Retweets are not included            \n \
-- Only recent tweets are loaded        \n \
-- Seacrh limited to ~20K tweets        \n \
+st.sidebar.info("- Textblob an vader are used for sentiment            \n \
+- Some cryto tickers might not be loaded        \n \
+- Seacrh limited to ~100K tweets        \n \
 Powered by [Streamlit] (https://docs.streamlit.io/en/stable/api.html), \
-    [Tweepy] (http://docs.tweepy.org/en/latest/), [yfinance](https://pypi.org/project/yfinance/)   \
+    [snscape] (https://github.com/JustAnotherArchivist/snscrape), [yfinance](https://pypi.org/project/yfinance/)   \
     and [Plotly](https://plotly.com/)          \n " )
 
 if page == 'Load tweets':
@@ -131,7 +132,8 @@ if page == 'Load tweets':
 elif page == "Sentiment across time":
     st.title('Lets analyze tweets')
     # try:
-    d_txtblob, d_vader, count_terms, count_hash = twidm.sentiment_analysis(df_tweets)
+    with st.spinner("Running sentiment"):
+        d_txtblob, d_vader, count_terms, count_hash = twidm.sentiment_analysis(df_tweets)
     df_tweets[ "txtblob"] = df_tweets["id"].map(d_txtblob)
     df_tweets["vader"] = df_tweets["id"].map(d_vader)
     # except:
@@ -139,7 +141,7 @@ elif page == "Sentiment across time":
 
     if st.checkbox("Activity across time"):
         # plot tweet counts over time
-        fig = twidm.get_tweet_counts_overtime(fin_data, df_tweets["created_at"], user_input, "10T" )
+        fig = twidm.get_tweet_counts_overtime(fin_data, df_tweets["created_at"], user_input, "1H" )
         st.plotly_chart(fig)
 
     if st.checkbox("Tweet processing and sentiment analysis"):
@@ -172,7 +174,7 @@ elif page == "Sentiment across time":
 
     if st.checkbox("Sentiment analysis across time"):
         
-        tmp =  df_tweets[["created_at", "vader", "txtblob"]].set_index("created_at").resample('1H').mean().reset_index()
+        tmp =  df_tweets[["created_at", "vader", "txtblob"]].set_index("created_at").resample('3H').mean().reset_index()
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
         fig.add_trace(go.Scatter(x = fin_data.index, y=fin_data['High'],
@@ -202,9 +204,9 @@ else:
         unique_user_map = dict(zip(df_tweets.user_id.values, df_tweets.user_bio.values))
 
         unique_user_cnt = len(unique_user_map.keys())
-        vec = TfidfVectorizer(preprocessor=replace_urls,
-                            tokenizer=my_tokenizer,
-                            stop_words=stop,
+        vec = TfidfVectorizer(preprocessor=twidm.replace_urls,
+                            tokenizer = twidm.my_tokenizer,
+                            stop_words=twidm.stop,
                             max_features=unique_user_cnt//50,
                             )
 
@@ -226,10 +228,10 @@ else:
         
         # run hdbscan on user bios
         hdbs = twidm.fit_hdbscan(bio_matrix)
-        fig = plot_hdbs_clustersize(hdbs)
+        fig = twidm.plot_hdbs_clustersize(hdbs)
         st.pyplot(fig)
         st.markdown("#### Strongest features")
-        strongest_features(hdbs, vec, topk=15)
+        twidm.strongest_features(hdbs, vec, bio_matrix, topk=15)
 
         # fit umap
         # embedding = fit_umap(bio_matrix.todense())
@@ -241,7 +243,8 @@ else:
         #        'UMAP of clustered users ["(cluster #) bio"]'))
         
         if st.checkbox("Opinion mining across identified user groups"):
-            d_txtblob, d_vader, count_terms, count_hash = twidm.sentiment_analysis(df_tweets)
+            with st.spinner("Running sentiment"):
+                d_txtblob, d_vader, count_terms, count_hash = twidm.sentiment_analysis(df_tweets)
             d_user_label = dict(zip(unique_users, hdbs.labels_))
 
             df_tweets[ "txtblob"] = df_tweets["id"].map(d_txtblob)
@@ -251,30 +254,34 @@ else:
             st.write(df_tweets.head())
             st.markdown("### Sentiment by groups")
             fig, ax = plt.subplots(2, 1,  sharey = True, sharex = True)
-            for idx, m in enumerate(models):  
-                sns.violinplot(x = "cluster", y = m, data = df_tweets, ax = ax[idx])
-            st.pyplot(fig)
+            # for idx, m in enumerate(models):  
+            #     sns.violinplot(x = "cluster", y = m, data = df_tweets, ax = ax[idx])
+            # st.pyplot(fig)
         
-            if st.checkbox("Sentiment analysis across time"):
+            # if st.checkbox("Sentiment analysis across time"):
 
-                columns = st.multiselect( 
-                label='What cluster to you want to display', options= sorted(df_tweets.cluster.unique().tolist()))
-         
-                fig, ax = plt.subplots(2, 1, sharex = True, sharey = True)
-                if len(columns) > 0:
-                    for col in columns:
+            columns = st.multiselect( 
+            label='What cluster do you want to display?', options= sorted(df_tweets.cluster.unique().tolist()))
+        
+            fig, ax = plt.subplots(2, 1, sharex = True, sharey = True)
+            if len(columns) > 0:
+                for col in columns:
+                    st.write('Users group', col)
+                    tmp = df_tweets[df_tweets.cluster == col]
+                    tmp =  tmp[["created_at", "cluster", models[0], models[1]]].set_index("created_at").resample('1H').mean().reset_index()
 
-                        tmp = df_tweets[df_tweets.cluster == col]
-                        tmp =  tmp[["created_at", "cluster", models[0], models[1]]].set_index("created_at").resample('1H').mean().reset_index()
-                        sns.lineplot(x = "created_at" , y = models[0],  data = tmp, ci = False , ax = ax[0], label = col )
-                        sns.lineplot(x = "created_at" , y = models[1],  data = tmp, ci = False , ax = ax[1] )
+                    fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-                        date_form = DateFormatter("%m-%d")
-                        ax[1].xaxis.set_major_formatter(date_form)
-                        ax[1].set_xlabel('Date')
-                        
-                        # plt.legend(bbox_to_anchor=(.7, 1), loc=2, borderaxespad=0.)
-                        plt.xticks(rotation = 45)
-                        plt.tight_layout()
-                    st.pyplot(fig)
+                    fig.add_trace(go.Scatter(x = fin_data.index, y=fin_data['High'],
+                                name=user_input), secondary_y = False)
+
+                    fig.add_trace(go.Scatter(x=tmp['created_at'], y= tmp["vader"],
+                                name='vader'), secondary_y = True)
+
+                    fig.add_trace(go.Scatter(x=tmp['created_at'], y= tmp["txtblob"],
+                                name='txtblob'), secondary_y = True)
+
+                    st.plotly_chart(fig)
+
+               
            
