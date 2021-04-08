@@ -17,6 +17,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import nltk
 nltk.download('vader_lexicon')
+nltk.download('stopwords')
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
